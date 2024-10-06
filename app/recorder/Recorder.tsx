@@ -1,12 +1,25 @@
 "use client"
 import { useEffect, useState } from 'react';
-import {generateJestCode} from '../utils/generateJestCode'
+import { generateJestCode} from '../utils/generateJestFile'
+import { getPathPage } from '../utils/getPathPage';
 
 const InteractionRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
-  const [interactions, setInteractions] = useState([]);
+  const [interactions, setInteractions] = useState<Interaction[]>([]);
 
-  const interactionTemplate = {
+  interface Interaction {
+    type: string; // The type of the interaction (e.g., 'click', 'input')
+    target: {
+      tag: string;   // The tag of the target element (e.g., 'button', 'input')
+      id: string;    // The ID of the target element
+      class: string; // The class of the target element
+      text: string;  // The text content of the target element
+    };
+    timestamp: number; // The timestamp of the interaction (in milliseconds)
+    value: unknown;      // The value associated with the interaction (for input events)
+  }
+
+  const interactionTemplate : Interaction = {
     type: '',
     target: {
       tag: '',
@@ -27,21 +40,24 @@ const InteractionRecorder = () => {
     
   };
 
-  const handleInteraction = (event) => {
+  type EventTypes = MouseEvent | KeyboardEvent | InputEvent | Event;
+
+  const handleInteraction = (event: EventTypes) => {
     if (!isRecording) return; // 녹화 중이 아닐 때는 무시
     console.log(event)
+    const target = event.target as HTMLElement;
 
-    const interaction = {
+    const interaction: Interaction = {
       ...interactionTemplate,
       type: event.type,
       target: {
-        tag: event.target.tagName.toLowerCase(),
-        id: event.target.id || '',
-        class: event.target.className || '',
-        text: event.target.textContent || '',
+        tag: target.tagName.toLowerCase(),
+        id: target.id || '',
+        class: target.className || '',
+        text: target.textContent || '',
       },
       timestamp: Date.now(),
-      value: event.target.value || null, // 값이 없을 경우 null로 설정
+      value: 'value' in target ? target.value : "null", // 값이 없을 경우 null로 설정
     };
 
     setInteractions((prev) => [...prev, interaction]);
@@ -49,9 +65,8 @@ const InteractionRecorder = () => {
 
   useEffect(() => {
     const events = [
-      'click', 'dblclick', 'mouseenter', 'mouseleave',
+      'click', 
       'input', 'change', 'focus', 'blur', 'keydown', 
-      'touchstart', 'touchmove', 'touchend',
       'resize', 'scroll',
     ];
 
@@ -70,10 +85,14 @@ const InteractionRecorder = () => {
     console.log(interactions)
   },[interactions])
 
+
+
   const handleRecordStop = () => {
         // 이벤트 리스너 제거 및 Jest 코드 생성
-        const jestCode = generateJestCode(interactions);
+        const pagePath = getPathPage()
+        const jestCode = generateJestCode(interactions, pagePath);
         console.log(jestCode);
+        // writeGeneratedTestFile(interactions)
         setIsRecording(false)
         setInteractions([]);
   }
